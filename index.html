@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Dungeon Tracker — Fantasy Combat Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Bowlby+One&family=UnifrakturCook:wght@700&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=EB+Garamond:wght@400;700&family=Familjen+Grotesk:wght@400;500;700&family=Space+Grotesk:wght@400;600;700&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      height: 100%; width: 100%;
+      background: #181412;
+      font-family: 'Inter Tight', system-ui, sans-serif;
+      color: #f3f3f3;
+      overflow: hidden;
+    }
+    #root { height: calc(100% - 28px); width: 100%; }
+    /* hide scrollbar inside artboards but keep scrollable */
+    *::-webkit-scrollbar { width: 8px; height: 8px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
+  </style>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" src="dashboard.jsx"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+
+  <script type="text/babel" data-presets="env,react">
+    const { useState, useEffect } = React;
+
+    // ──────────────────────────────────────────────────────
+    // Tweakable defaults — edited live via Tweaks panel
+    // ──────────────────────────────────────────────────────
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "view": "focus",
+      "focusedTheme": "comic",
+      "density": "comfortable",
+      "showLog": true,
+      "preloadGame": false
+    }/*EDITMODE-END*/;
+
+    // Pre-baked starter game state so the canvas previews show the dashboard
+    // mid-game instead of forcing the user thru setup three times.
+    const sampleState = () => ({
+      players: [
+        { id: 'p0', name: 'Aldric',    color: '#E63946', race: 'elf',      class: 'wizard',  level: 7,
+          gear: [{name: 'Staff', bonus: 5, icon: '🪄', slot: 'Hand'}, {name: 'Pointy Hat', bonus: 1, icon: '🪖', slot: 'Headgear'}, {name: 'Hireling', bonus: 1, icon: '🧑‍🌾', slot: 'Other'}] },
+        { id: 'p1', name: 'Mirabelle', color: '#3A86FF', race: 'halfling', class: 'thief',   level: 5,
+          gear: [{name: 'Short Sword', bonus: 2, icon: '⚔️', slot: 'Hand'}, {name: 'Stepladder', bonus: 1, icon: '🎒', slot: 'Other'}] },
+        { id: 'p2', name: 'Grog',      color: '#06A77D', race: 'dwarf',    class: 'warrior', level: 8,
+          gear: [{name: 'Broad Sword', bonus: 3, icon: '⚔️', slot: 'Hand'}, {name: 'Mail', bonus: 3, icon: '🛡️', slot: 'Armor'}, {name: 'Helm', bonus: 1, icon: '🪖', slot: 'Headgear'}] },
+        { id: 'p3', name: 'Pip',       color: '#FFB703', race: 'none',     class: 'cleric',  level: 4,
+          gear: [{name: 'Mace', bonus: 4, icon: '⚔️', slot: 'Hand'}] },
+      ],
+      activeId: 'p2',
+      monster: { name: 'Big Scary Dragon', level: 20, treasure: 5, bonus: 0 },
+      round: 4,
+      log: [
+        { text: 'Game start. 4 adventurers enter the dungeon.', t: Date.now() - 600000 },
+        { text: 'Aldric kicked open the door. Found a small pest.', t: Date.now() - 500000 },
+        { text: 'Aldric won the fight! +1 treasure, +1 level.', t: Date.now() - 480000 },
+        { text: 'Mirabelle backstabbed Grog. Lost 2 items.', t: Date.now() - 300000 },
+        { text: 'Round 4 begins.', t: Date.now() - 60000 },
+        { text: 'A Big Scary Dragon (Lv 20) appears!', t: Date.now() - 5000 },
+      ],
+    });
+
+    function App() {
+      const [tweaks, setTweak] = window.useTweaks
+        ? window.useTweaks(TWEAK_DEFAULTS)
+        : [TWEAK_DEFAULTS, () => {}];
+
+      const initialState = tweaks.preloadGame ? sampleState() : null;
+
+      const variants = [
+        { id: 'comic',     label: 'A · Comic Crawl',     w: 1280, h: 820 },
+        { id: 'parchment', label: 'B · Vellum & Vermin', w: 1280, h: 820 },
+        { id: 'flat',      label: 'C · Flat Pack',       w: 1280, h: 820 },
+      ];
+
+      // ── Focus view: just one big dashboard, theme selectable ──
+      if (tweaks.view === 'focus') {
+        return (
+          <div style={{
+            position: 'fixed', inset: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: '#181412',
+          }}>
+            <div style={{ width: '100%', height: '100%' }}>
+              <window.MunchkinDashboard
+                theme={tweaks.focusedTheme}
+                density={tweaks.density}
+                showLog={tweaks.showLog}
+                maxPlayers={10}
+                initialState={initialState}
+              />
+            </div>
+            <TweaksUI tweaks={tweaks} setTweak={setTweak} />
+          </div>
+        );
+      }
+
+      // ── Canvas view: side-by-side variations ──
+      return (
+        <window.DesignCanvas>
+          <window.DCSection
+            id="munchkin"
+            title="MUNCHKIN — Game Dashboard"
+            subtitle="Three takes on the same game. Click any board to fullscreen it."
+          >
+            {variants.map(v => (
+              <window.DCArtboard key={v.id} id={v.id} label={v.label} width={v.w} height={v.h}>
+                <window.MunchkinDashboard
+                  theme={v.id}
+                  density={tweaks.density}
+                  showLog={tweaks.showLog}
+                  maxPlayers={10}
+                  fixedSize={{ width: v.w, height: v.h }}
+                  initialState={initialState}
+                />
+              </window.DCArtboard>
+            ))}
+          </window.DCSection>
+          <TweaksUI tweaks={tweaks} setTweak={setTweak} />
+        </window.DesignCanvas>
+      );
+    }
+
+    function TweaksUI({ tweaks, setTweak }) {
+      if (!window.TweaksPanel) return null;
+      const { TweaksPanel, TweakSection, TweakRadio, TweakSelect, TweakToggle } = window;
+      return (
+        <TweaksPanel title="Munchkin Tweaks">
+          <TweakSection label="View">
+            <TweakRadio label="Layout"
+              value={tweaks.view}
+              onChange={(v) => setTweak('view', v)}
+              options={[
+                { value: 'canvas', label: 'Compare' },
+                { value: 'focus',  label: 'Focus' },
+              ]} />
+            {tweaks.view === 'focus' && (
+              <TweakSelect label="Theme"
+                value={tweaks.focusedTheme}
+                onChange={(v) => setTweak('focusedTheme', v)}
+                options={[
+                  { value: 'comic',     label: 'Comic Crawl' },
+                  { value: 'parchment', label: 'Vellum & Vermin' },
+                  { value: 'flat',      label: 'Flat Pack' },
+                ]} />
+            )}
+          </TweakSection>
+          <TweakSection label="Density">
+            <TweakRadio label="Spacing"
+              value={tweaks.density}
+              onChange={(v) => setTweak('density', v)}
+              options={[
+                { value: 'compact',     label: 'Compact' },
+                { value: 'comfortable', label: 'Comfy' },
+              ]} />
+          </TweakSection>
+          <TweakSection label="Panels">
+            <TweakToggle label="Game log"
+              value={tweaks.showLog}
+              onChange={(v) => setTweak('showLog', v)} />
+            <TweakToggle label="Preload sample"
+              value={tweaks.preloadGame}
+              onChange={(v) => setTweak('preloadGame', v)} />
+          </TweakSection>
+        </TweaksPanel>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+
+  <div id="sjg-disclaimer" style="position:fixed;bottom:0;left:0;right:0;height:28px;box-sizing:border-box;z-index:5;padding:6px 14px;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);color:#9a9a9a;font:9px/1.3 'Inter Tight',system-ui,sans-serif;text-align:center;pointer-events:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+    Munchkin is a trademark of Steve Jackson Games. This unofficial fan-made game aid is released for free distribution under the SJG Online Policy. Not for resale.
+  </div>
+</body>
+</html>
