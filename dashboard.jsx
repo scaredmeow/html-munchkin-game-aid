@@ -1352,14 +1352,50 @@ function SetupScreen({ theme, onStart, maxPlayers }) {
             color: theme.inkSoft,
           }}>Name your victims</div>
           {Array.from({ length: n }, (_, i) => (
-            <input key={i} value={names[i] || ''}
-              onChange={e => {
-                const nm = [...names]; nm[i] = e.target.value; setNames(nm);
-              }}
-              placeholder={`Player ${i + 1}`}
-              style={{ ...inputStyle(theme), padding: '8px 10px' }}
-            />
+            <div key={i} style={{ display: 'flex', gap: 6 }}>
+              <input value={names[i] || ''}
+                onChange={e => {
+                  const nm = [...names]; nm[i] = e.target.value; setNames(nm);
+                }}
+                placeholder={`Player ${i + 1}`}
+                style={{ ...inputStyle(theme), padding: '8px 10px', flex: 1 }}
+              />
+              <button onClick={() => {
+                const nm = [...names];
+                const taken = new Set(nm.filter((_, j) => j !== i));
+                const pool = RANDOM_PLAYER_NAMES.filter(name => !taken.has(name));
+                nm[i] = pick(pool.length ? pool : RANDOM_PLAYER_NAMES);
+                setNames(nm);
+              }} title="Random name" style={{
+                width: 38, padding: 0, flexShrink: 0,
+                background: theme.panelAlt, color: theme.ink,
+                border: `2px solid ${theme.border}`, borderRadius: theme.radius,
+                cursor: 'pointer', fontSize: 16,
+              }}>🎲</button>
+            </div>
           ))}
+          <button onClick={() => {
+            const pool = [...RANDOM_PLAYER_NAMES];
+            const fresh = [];
+            for (let i = 0; i < n; i++) {
+              const idx = Math.floor(Math.random() * pool.length);
+              fresh.push(pool.splice(idx, 1)[0] || `Player ${i + 1}`);
+            }
+            setNames(prev => {
+              const merged = [...prev];
+              for (let i = 0; i < n; i++) merged[i] = fresh[i];
+              return merged;
+            });
+          }} style={{
+            marginTop: 4,
+            background: 'transparent',
+            border: `2px dashed ${theme.border}`,
+            borderRadius: theme.radius,
+            padding: '6px 10px',
+            fontFamily: theme.fontUI, fontSize: 11,
+            textTransform: 'uppercase', letterSpacing: '0.08em',
+            color: theme.inkSoft, cursor: 'pointer',
+          }}>🎲 Randomize all</button>
         </div>
 
         <button onClick={() => onStart(n, names.slice(0, n))} style={{
@@ -1443,6 +1479,13 @@ const PLAYER_COLORS = ['#E63946', '#3A86FF', '#06A77D', '#FFB703', '#8338EC', '#
 // ────────────────────────────────────────────────────────────
 // Random suggestion banks (snarky, irreverent — not from any card)
 // ────────────────────────────────────────────────────────────
+const RANDOM_PLAYER_NAMES = [
+  'Aldric', 'Mirabelle', 'Grog', 'Pip', 'Vex', 'Tunk', 'Bork', 'Zella', 'Mungo', 'Fenra',
+  'Brunhilde', 'Tassadar', 'Wymbric', 'Snorri', 'Lyra', 'Quill', 'Hadrian', 'Sable', 'Drog', 'Esme',
+  'Korg', 'Nessa', 'Otho', 'Pemberly', 'Ragnar', 'Saskia', 'Thistle', 'Ulric', 'Velka', 'Wren',
+  'Bramble', 'Cinder', 'Dax', 'Elowen', 'Fjord', 'Gilda', 'Halvard', 'Indra', 'Jorund', 'Kestrel',
+  'Mossfoot', 'Nim', 'Orla', 'Pax', 'Quincey', 'Rook', 'Sigrid', 'Thorne', 'Uma', 'Vance',
+];
 const RANDOM_RACES = [
   'Barbarian', 'High Schooler', 'Tired Parent', 'Tax Auditor', 'Pirate', 'Ghoul',
   'Robot', 'Yeti', 'Vampire', 'Cyborg', 'Goblin', 'Centaur', 'Mermaid', 'Lizardfolk',
@@ -1521,6 +1564,15 @@ function MunchkinDashboard({ theme: themeId = 'comic', density = 'comfortable', 
 
   const updatePlayer = (id, updated) => setPlayers(ps => ps.map(p => p.id === id ? updated : p));
   const removePlayer = (id) => setPlayers(ps => ps.filter(p => p.id !== id));
+  const addPlayer = () => {
+    const id = `p${Date.now()}`;
+    setPlayers(ps => [...ps, {
+      id, name: `Player ${ps.length + 1}`,
+      color: PLAYER_COLORS[ps.length % PLAYER_COLORS.length],
+      race: 'none', class: 'none',
+      level: 1, gear: [],
+    }]);
+  };
   const advanceTurn = () => {
     const idx = players.findIndex(p => p.id === activeId);
     const next = players[(idx + 1) % players.length];
@@ -1547,10 +1599,21 @@ function MunchkinDashboard({ theme: themeId = 'comic', density = 'comfortable', 
   const tip = useMemo(() => SNARK[Math.floor(Math.random() * SNARK.length)], [round]);
 
   // Breakpoints (container, not viewport)
+  const isMobile = w < 600;           // combat on top, single-player carousel
   const stackSide = w < 820;          // monster + log drop below player grid
   const minCard = isCompact ? 200 : 240;
   const sideW = w < 1000 ? 280 : 300;
   const showTip = w >= 720;
+
+  // Mobile carousel: which player is being viewed (defaults to active, follows turn changes)
+  const [viewedId, setViewedId] = useState(null);
+  useEffect(() => { setViewedId(activeId); }, [activeId]);
+  const viewedPlayer = players.find(p => p.id === viewedId)
+    || players.find(p => p.id === activeId)
+    || players[0];
+  const viewedIdx = viewedPlayer ? players.findIndex(p => p.id === viewedPlayer.id) : -1;
+  const goPrev = () => players.length > 1 && setViewedId(players[(viewedIdx - 1 + players.length) % players.length].id);
+  const goNext = () => players.length > 1 && setViewedId(players[(viewedIdx + 1) % players.length].id);
 
   return (
     <div ref={rootRef} style={{
@@ -1613,58 +1676,14 @@ function MunchkinDashboard({ theme: themeId = 'comic', density = 'comfortable', 
           </div>
 
           {/* Body */}
-          <div style={{
-            position: 'relative', zIndex: 1,
-            flex: 1, minHeight: 0,
-            overflow: stackSide ? 'auto' : 'hidden',
-            display: 'grid',
-            gridTemplateColumns: stackSide ? '1fr' : `1fr ${sideW}px`,
-            gap: 14, padding: 14,
-            minWidth: 0,
-          }}>
-            {/* Players grid */}
+          {isMobile ? (
             <div style={{
-              overflow: stackSide ? 'visible' : 'auto',
-              display: 'grid',
-              gridTemplateColumns: `repeat(auto-fit, minmax(${minCard}px, 1fr))`,
-              gap: isCompact ? 14 : 20,
-              padding: '10px 4px 4px',
-              alignContent: 'start',
+              position: 'relative', zIndex: 1,
+              flex: 1, minHeight: 0,
+              overflow: 'auto',
+              display: 'flex', flexDirection: 'column', gap: 14, padding: 12,
             }}>
-              {players.map(p => (
-                <PlayerCard key={p.id} theme={theme} player={p}
-                  isActive={p.id === activeId}
-                  onChange={(np) => updatePlayer(p.id, np)}
-                  onRemove={() => removePlayer(p.id)}
-                  onSetActive={() => setActiveId(p.id)}
-                  density={density}
-                />
-              ))}
-              {players.length < maxPlayers && (
-                <button onClick={() => {
-                  const id = `p${Date.now()}`;
-                  setPlayers(ps => [...ps, {
-                    id, name: `Player ${ps.length + 1}`,
-                    color: PLAYER_COLORS[ps.length % PLAYER_COLORS.length],
-                    race: 'none', class: 'none',
-                    level: 1, gear: [],
-                  }]);
-                }} style={{
-                  background: 'transparent',
-                  border: `2px dashed ${theme.border}`,
-                  borderRadius: theme.radius,
-                  minHeight: 200,
-                  fontFamily: theme.fontUI, fontSize: 13, color: theme.inkSoft,
-                  cursor: 'pointer',
-                }}>＋ Add Player</button>
-              )}
-            </div>
-
-            {/* Side: Monster + Log */}
-            <div style={{
-              display: 'flex', flexDirection: 'column', gap: 14,
-              minHeight: 0,
-            }}>
+              {/* Combat — always on top */}
               <MonsterPanel theme={theme} monster={monster}
                 onChange={setMonster}
                 onClear={() => setMonster(null)}
@@ -1672,9 +1691,130 @@ function MunchkinDashboard({ theme: themeId = 'comic', density = 'comfortable', 
                 onLog={addLog}
                 onPlayerChange={(id, p) => setPlayers(ps => ps.map(x => x.id === id ? p : x))}
               />
+
+              {/* Player carousel */}
+              {viewedPlayer && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button onClick={goPrev} disabled={players.length < 2} aria-label="Previous player" style={{
+                      width: 44, height: 44, flexShrink: 0,
+                      background: theme.panelAlt, color: theme.ink,
+                      border: `2px solid ${theme.border}`, borderRadius: theme.radius,
+                      fontSize: 18, cursor: players.length < 2 ? 'default' : 'pointer',
+                      opacity: players.length < 2 ? 0.4 : 1,
+                    }}>◀</button>
+                    <div style={{
+                      flex: 1, textAlign: 'center',
+                      fontFamily: theme.fontUI, fontSize: 12,
+                      color: theme.inkSoft, lineHeight: 1.3,
+                    }}>
+                      <div style={{ fontWeight: 600, color: theme.ink, fontSize: 13 }}>
+                        {viewedPlayer.name}
+                        {viewedPlayer.id === activeId && (
+                          <span style={{ color: theme.accent2, marginLeft: 6 }}>★ current</span>
+                        )}
+                      </div>
+                      <div>Player {viewedIdx + 1} of {players.length}</div>
+                    </div>
+                    <button onClick={goNext} disabled={players.length < 2} aria-label="Next player" style={{
+                      width: 44, height: 44, flexShrink: 0,
+                      background: theme.panelAlt, color: theme.ink,
+                      border: `2px solid ${theme.border}`, borderRadius: theme.radius,
+                      fontSize: 18, cursor: players.length < 2 ? 'default' : 'pointer',
+                      opacity: players.length < 2 ? 0.4 : 1,
+                    }}>▶</button>
+                  </div>
+
+                  <PlayerCard key={viewedPlayer.id} theme={theme} player={viewedPlayer}
+                    isActive={viewedPlayer.id === activeId}
+                    onChange={(np) => updatePlayer(viewedPlayer.id, np)}
+                    onRemove={() => removePlayer(viewedPlayer.id)}
+                    onSetActive={() => setActiveId(viewedPlayer.id)}
+                    density={density}
+                  />
+
+                  {viewedPlayer.id !== activeId && (
+                    <button onClick={() => setActiveId(viewedPlayer.id)} style={{
+                      background: theme.accent, color: '#fff',
+                      border: `2px solid ${theme.border}`, borderRadius: theme.radius,
+                      padding: '8px 12px',
+                      fontFamily: theme.fontUI, fontSize: 12, fontWeight: 600,
+                      letterSpacing: '0.06em', textTransform: 'uppercase',
+                      cursor: 'pointer',
+                    }}>Make this player current</button>
+                  )}
+                </div>
+              )}
+
+              {players.length < maxPlayers && (
+                <button onClick={addPlayer} style={{
+                  background: 'transparent',
+                  border: `2px dashed ${theme.border}`,
+                  borderRadius: theme.radius,
+                  padding: '12px',
+                  fontFamily: theme.fontUI, fontSize: 13, color: theme.inkSoft,
+                  cursor: 'pointer',
+                }}>＋ Add Player</button>
+              )}
+
               {showLog && <GameLog theme={theme} log={log} />}
             </div>
-          </div>
+          ) : (
+            <div style={{
+              position: 'relative', zIndex: 1,
+              flex: 1, minHeight: 0,
+              overflow: stackSide ? 'auto' : 'hidden',
+              display: 'grid',
+              gridTemplateColumns: stackSide ? '1fr' : `1fr ${sideW}px`,
+              gap: 14, padding: 14,
+              minWidth: 0,
+            }}>
+              {/* Players grid */}
+              <div style={{
+                overflow: stackSide ? 'visible' : 'auto',
+                display: 'grid',
+                gridTemplateColumns: `repeat(auto-fit, minmax(${minCard}px, 1fr))`,
+                gap: isCompact ? 14 : 20,
+                padding: '10px 4px 4px',
+                alignContent: 'start',
+              }}>
+                {players.map(p => (
+                  <PlayerCard key={p.id} theme={theme} player={p}
+                    isActive={p.id === activeId}
+                    onChange={(np) => updatePlayer(p.id, np)}
+                    onRemove={() => removePlayer(p.id)}
+                    onSetActive={() => setActiveId(p.id)}
+                    density={density}
+                  />
+                ))}
+                {players.length < maxPlayers && (
+                  <button onClick={addPlayer} style={{
+                    background: 'transparent',
+                    border: `2px dashed ${theme.border}`,
+                    borderRadius: theme.radius,
+                    minHeight: 200,
+                    fontFamily: theme.fontUI, fontSize: 13, color: theme.inkSoft,
+                    cursor: 'pointer',
+                  }}>＋ Add Player</button>
+                )}
+              </div>
+
+              {/* Side: Monster + Log */}
+              <div style={{
+                display: 'flex', flexDirection: 'column', gap: 14,
+                minHeight: 0,
+              }}>
+                <MonsterPanel theme={theme} monster={monster}
+                  onChange={setMonster}
+                  onClear={() => setMonster(null)}
+                  players={players} activePlayerId={activeId}
+                  onLog={addLog}
+                  onPlayerChange={(id, p) => setPlayers(ps => ps.map(x => x.id === id ? p : x))}
+                />
+                {showLog && <GameLog theme={theme} log={log} />}
+              </div>
+            </div>
+          )}
         </>
       )}
 
