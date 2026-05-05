@@ -32,6 +32,6 @@ This is a hobby project. It originated as a design prototype (HTML/CSS/JS) and h
 
 ## Legal
 
-[**_Munchkin_**](http://www.sjgames.com/munchkin/) is a trademark of Steve Jackson Games, and its rules and art are copyrighted by Steve Jackson Games. All rights are reserved by Steve Jackson Games. This game aid is the original creation of **[YOUR NAME]** and is released for free distribution, and not for resale, under the permissions granted in the [Steve Jackson Games Online Policy](http://www.sjgames.com/general/online_policy.html).
+[**_Munchkin_**](http://www.sjgames.com/munchkin/) is a trademark of Steve Jackson Games, and its rules and art are copyrighted by Steve Jackson Games. All rights are reserved by Steve Jackson Games. This game aid is the original creation of **Neil Riego** and is released for free distribution, and not for resale, under the permissions granted in the [Steve Jackson Games Online Policy](http://www.sjgames.com/general/online_policy.html).
 
 For the long-form notice and the scope of what is and is not included, see [DISCLAIMER.md](./DISCLAIMER.md).
