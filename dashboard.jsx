@@ -1583,6 +1583,29 @@ function MunchkinDashboard({ theme: themeId = 'comic', density = 'comfortable', 
     setActiveId(next?.id);
   };
 
+  const goHome = () => {
+    if (!confirm('Leave this game and return to the start screen? Progress will be lost.')) return;
+    setPhase('setup');
+    setPlayers([]);
+    setActiveId(null);
+    setMonster(null);
+    setLog([]);
+    setRound(1);
+    setWon(false);
+    resetTime();
+  };
+
+  const resetGame = () => {
+    if (!confirm('Reset the game? All players will be set to Level 1 with no gear, and the log will clear. Names and party are kept.')) return;
+    setPlayers(ps => ps.map(p => ({ ...p, level: 1, gear: [] })));
+    setActiveId(players[0]?.id || null);
+    setMonster(null);
+    setLog([{ text: `Game reset. ${players.length} adventurers re-enter the dungeon.`, t: Date.now() }]);
+    setRound(1);
+    setWon(false);
+    resetTime();
+  };
+
   // Responsive container query — measure self width and pick layout breakpoints
   const rootRef = useRef(null);
   const [w, setW] = useState(1200);
@@ -1657,9 +1680,21 @@ function MunchkinDashboard({ theme: themeId = 'comic', density = 'comfortable', 
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             }}>{tip}</div>}
 
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, alignItems: 'center' }}>
-              <Stat theme={theme} label="Round" value={round} />
-              <Stat theme={theme} label="Time" value={fmtTime(time)} mono />
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+              {!isMobile && <Stat theme={theme} label="Round" value={round} />}
+              {!isMobile && <Stat theme={theme} label="Time" value={fmtTime(time)} mono />}
+              <button onClick={goHome} title="Home (back to start screen)" aria-label="Home" style={{
+                background: theme.panelAlt, color: theme.ink,
+                border: `2px solid ${theme.border}`, borderRadius: theme.radius,
+                width: 36, height: 36, padding: 0, flexShrink: 0,
+                cursor: 'pointer', fontSize: 16, lineHeight: 1,
+              }}>🏠</button>
+              <button onClick={resetGame} title="Reset game (keep players, clear progress)" aria-label="Reset game" style={{
+                background: theme.panelAlt, color: theme.ink,
+                border: `2px solid ${theme.border}`, borderRadius: theme.radius,
+                width: 36, height: 36, padding: 0, flexShrink: 0,
+                cursor: 'pointer', fontSize: 16, lineHeight: 1,
+              }}>🔄</button>
               <button onClick={advanceTurn} style={{
                 background: theme.accent2, color: '#fff',
                 border: `2px solid ${theme.border}`,
@@ -1671,7 +1706,7 @@ function MunchkinDashboard({ theme: themeId = 'comic', density = 'comfortable', 
                 boxShadow: theme.shadowSm,
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
-              }}>Next Turn →</button>
+              }}>{isMobile ? 'Next →' : 'Next Turn →'}</button>
             </div>
           </div>
 
